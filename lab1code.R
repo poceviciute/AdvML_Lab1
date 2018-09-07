@@ -65,8 +65,8 @@ all.equal(hc1, hc5)
 
 
 #2
-
-ind <- sample(1:5000, size = 0.8*5000)
+N <- nrow(asia)
+ind <- sample(1:N, size = 0.8*N)
 train <- asia[ind,]
 test <- asia[-ind,]
 
@@ -84,19 +84,21 @@ compile(ml_grain)
 #setFinding(ml_grain)
 querygrain(ml_grain, nodes = nodeNames(ml_grain))
 
-prob_no <- ml_fit$S$prob[1]
-
-s_pred <- sapply(rep.int(1, nrow(test)), function(a){
-    s <- c()
-    if (runif(1) < prob_no) {
-        s <- "no"
-    } else{
-        s <- "yes"
-    }
-    return(s)
-    
-})
-
+# Prediction
+prob_no <- ml_fit$S$prob["no"]
+s <- vector(length = nrow(test))
+for(i in 1:nrow(test)){
+  if(runif(1)<prob_no){
+    s[i] <- "no"
+  }else{
+    s[i] <- "yes"
+  }
+}
+# Confusion matrix
+table(test$S, s)
 
 dag = model2network("[A][S][T|A][L|S][B|S][D|B:E][E|T:L][X|E]") #true graph
 plot(dag)
+arcs(dag)
+arcs(hc1)
+plot(hc1)
