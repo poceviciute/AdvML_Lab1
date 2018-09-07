@@ -84,11 +84,19 @@ compile(ml_grain)
 #setFinding(ml_grain)
 querygrain(ml_grain, nodes = nodeNames(ml_grain))
 
-if(runif(1)<prob_no){
-  s <- "no"
-}else{
-  s <- "yes"
-}
+prob_no <- ml_fit$S$prob[1]
+
+s_pred <- sapply(rep.int(1, nrow(test)), function(a){
+    s <- c()
+    if (runif(1) < prob_no) {
+        s <- "no"
+    } else{
+        s <- "yes"
+    }
+    return(s)
+    
+})
+
 
 dag = model2network("[A][S][T|A][L|S][B|S][D|B:E][E|T:L][X|E]") #true graph
 plot(dag)
