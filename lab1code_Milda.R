@@ -88,11 +88,11 @@ bn.fit.dotplot(ml_fit$S)
 
 
 # Learn parameters using Bayes method
-bayes_fit = bn.fit(train_learn, train, method = "bayes")
-bayes_fit
-bn.fit.barchart(bayes_fit$A)
-bn.fit.barchart(bayes_fit$S)
-bn.fit.dotplot(bayes_fit$S)
+#bayes_fit = bn.fit(train_learn, train, method = "bayes")
+#bayes_fit
+#bn.fit.barchart(bayes_fit$A)
+#bn.fit.barchart(bayes_fit$S)
+#bn.fit.dotplot(bayes_fit$S)
 
 # As S has no parents, the porbabilities are close to 0,5
 
@@ -100,9 +100,14 @@ bn.fit.dotplot(bayes_fit$S)
 # Using grain package"
 ml_grain <- as.grain(ml_fit)
 
-compile(ml_grain) 
-setFinding(ml_grain)
+ml_grain2 <- compile(ml_grain) 
+prop_ml_grain <- propagate.grain(ml_grain2)
 querygrain(ml_grain, nodes = nodeNames(ml_grain)) # marginal prob
+querygrain(ml_grain,nodes=c("L","B"), type="joint")# joint prob
+
+tt <- querygrain(prop_ml_grain, type="joint")
+sum(tt==0)/length(tt)
+
 
 ##################################
 # Do we need to come up with our own evidence?
@@ -110,17 +115,71 @@ querygrain(ml_grain, nodes = nodeNames(ml_grain)) # marginal prob
 
 ##################################
 ## Prediction based on evidence
-cnames2 <- colnames(test)
 
-Ev1 <- setEvidence(ml_grain,nodes=cnames2[-2],states=test[1,-2]) # S is no
+
+cnames2 <- colnames(test[-2])
+new_test <- test[,-2]
+
+# create the list
+create_list <- function(l) {
+  list1 <- as.list(as.character(l)) #new_test[1,]
+  yesno <- c("no", "yes")
+  final_list <- list()
+  for (i in 1:length(l)) {
+    if (list1[i] == "1") {
+      final_list[i] <- yesno[1]
+    } else {
+      final_list[i] <- yesno[2]
+    }
+  }
+  names(final_list) <- cnames2
+  return(final_list)
+}
+
+#evidence_lists <- apply(new_test,1,create_list)
+
+# They are supposed to be the same, but they are not :((((
+net12 <- setEvidence(ml_grain, evidence=list(A="no",T="yes",L="no",B="no",E="yes",X="yes" ,D="yes"))
+pEvidence(net12)
+Ev1 <- setEvidence(ml_grain,nodes=as.vector(cnames2),states=as.vector(test[1,-2])) # S is no
 pEvidence(Ev1)
-S_yes <- test[1,]
-S_yes$S <-test[2,2] # S is yes
-Ev2 <- setEvidence(ml_grain,nodes=cnames2,states=S_yes)
-pEvidence(Ev2)
+######
+# Predict probabilities based on test data DOES NOT WORK ;(
+final_prob <- apply(new_test,1,function(line){
+  list_ev <- create_list(line)
+  Ev <- setEvidence(ml_grain,evidence=list_ev)
+  return(pEvidence(Ev))
+})
+####
+#length(final_prob)
+#dim(new_test)
+
+## works
+final_prob2 <- c()
+Evid <- c()
+list_ev<- list()
+for (i in 1:nrow(new_test)){
+  list_ev <- create_list(new_test[i,])
+  Evid <- setEvidence(prop_ml_grain,evidence=list_ev)  
+  final_prob2[i] <- pEvidence(Evid)
+}
+###
+hist(final_prob2)
+
+Ev <- setEvidence(ml_grain,evidence=create_list(new_test[1,])) # 
+pEvidence(Ev)
+
+final_prob[150]
+final_prob2[1]
 
 
-plot(ml_fit)
+
+se1<-setEvidence(compile(ml_LS), evidence = list(S=c(1,0),new_test[1,]))
+pEvidence(se1)
+querygrain(se1)
+
+
+plot(train_learn)
 
 # Prediction Uniform
 prob_no <- ml_fit$S$prob["no"]
