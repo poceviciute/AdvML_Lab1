@@ -20,19 +20,19 @@ arcs(hc1)
 vstructs(hc1)
 cpdag(hc1)
 
-hc2 <- hc(asia, start = NULL, score = "bde", restart = 2, iss=10)
+hc2 <- hc(asia, start = NULL, score = "bde", restart = 2, iss=100)
 plot(hc2)
 cpdag(hc2)
 
-hc3 <- hc(asia, start = NULL, score = "bde", restart = 2, iss=100)
+hc3 <- hc(asia, start = NULL, score = "bde", restart = 2, iss=1000)
 plot(hc3)
 cpdag(hc3)
 
-hc4 <- hc(asia, start = NULL, score = "bde", restart = 10, iss=10)
+hc4 <- hc(asia, start = NULL, score = "bde", restart = 10, iss=100)
 plot(hc4)
 cpdag(hc4)
 
-hc5 <- hc(asia, start = NULL, score = "bde", restart = 10, iss=100)
+hc5 <- hc(asia, start = NULL, score = "bde", restart = 10, iss=1000)
 plot(hc5)
 cpdag(hc5)
 
@@ -45,20 +45,20 @@ plot(startgraph)
 hc7 <- hc(asia, start = startgraph)
 plot(hc7)
 
-hc8 <- hc(asia, start = startgraph, score = "bde", restart = 10, iss=10)
+hc8 <- hc(asia, start = startgraph, score = "bde", restart = 10, iss=100)
 plot(hc8)
 
 all.equal(hc8, hc2) #the same
-all.equal(hc8, hc4)
-all.equal(hc1,hc7) #the same
-all.equal(hc1, hc6) #the same
+all.equal(hc8, hc4)#the same
+all.equal(hc1,hc7) 
+all.equal(hc1, hc6) 
 all.equal(hc1,hc2)
 all.equal(hc2,hc3)
-all.equal(hc2, hc4)
+all.equal(hc2, hc4)#the same
 all.equal(hc3,hc4)
 all.equal(hc1, hc3)
 all.equal(hc1,hc4)
-all.equal(hc3, hc5)
+all.equal(hc3, hc5) #the same
 all.equal(hc2, hc5)
 all.equal(hc4,hc5)
 all.equal(hc1, hc5)
@@ -80,9 +80,30 @@ bn.fit.dotplot(ml_fit$S)
 
 
 ml_grain <- as.grain(ml_fit)
-compile(ml_grain)
-#setFinding(ml_grain)
-querygrain(ml_grain, nodes = nodeNames(ml_grain))
+ml_comp <- compile(ml_grain)
+ml_LS <- propagate.grain(ml_grain)
+compile(ml_LS)
+querygrain(ml_LS)
+
+#apply setevidence to every row in test without S to get prob. for S
+#then classify S for each row with prob.
+new_test <- test[,-2]
+se1<-setEvidence(compile(ml_LS), evidence = list(S=c(1,0),new_test[1,]))
+pEvidence(se1)
+querygrain(se1)
+se2<-setEvidence(compile(ml_LS), evidence = list(S=c(1,0),new_test[2,]))
+pEvidence(se2)
+se3<-setEvidence(compile(ml_LS), evidence = list(S=c(1,0),new_test[3,]))
+pEvidence(se3)
+se8<-setEvidence(compile(ml_LS), evidence = list(new_test[8,]))
+pEvidence(se8)
+querygrain(se8)
+grain_pred <- apply(new_test, 1, function(x){pEvidence(setEvidence(ml_LS, evidence = x))})
+querygrain(setEvidence(ml_LS, evidence = list(new_test[1,])))
+querygrain(setEvidence(ml_LS, evidence = list(test[1,-4])))
+querygrain(setEvidence(ml_LS, evidence = list(test[1,-6])))
+querygrain(ml_grain, nodes = nodeNames(ml_grain)) #marginal
+querygrain(ml_grain, nodes = nodeNames(ml_grain), type = "conditional")
 
 # Prediction
 prob_no <- ml_fit$S$prob["no"]
@@ -98,6 +119,7 @@ for(i in 1:nrow(test)){
 table(test$S, s)
 
 dag = model2network("[A][S][T|A][L|S][B|S][D|B:E][E|T:L][X|E]") #true graph
+
 plot(dag)
 arcs(dag)
 arcs(hc1)
