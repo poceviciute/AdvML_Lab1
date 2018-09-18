@@ -67,7 +67,7 @@ all.equal(BN2, BN5)
 all.equal(BN4,BN5)
 all.equal(BN1, BN5)
 
-
+##################################################
 # Question 2
 N <- nrow(asia)
 ind <- sample(1:N, size = 0.8*N)
@@ -85,14 +85,7 @@ bn.fit.barchart(ml_fit$A)
 bn.fit.barchart(ml_fit$S)
 bn.fit.dotplot(ml_fit$S)
 
-
-
-# Learn parameters using Bayes method
-#bayes_fit = bn.fit(train_learn, train, method = "bayes")
-#bayes_fit
-#bn.fit.barchart(bayes_fit$A)
-#bn.fit.barchart(bayes_fit$S)
-#bn.fit.dotplot(bayes_fit$S)
+#pred1 <- predict(ml_fit,node = "S", data=test)
 
 # As S has no parents, the porbabilities are close to 0,5
 
@@ -101,12 +94,7 @@ bn.fit.dotplot(ml_fit$S)
 ml_grain <- as.grain(ml_fit)
 
 ml_grain2 <- compile(ml_grain) 
-prop_ml_grain <- propagate.grain(ml_grain2)
-querygrain(ml_grain, nodes = nodeNames(ml_grain)) # marginal prob
-querygrain(ml_grain,nodes=c("L","B"), type="joint")# joint prob
 
-tt <- querygrain(prop_ml_grain, type="joint")
-sum(tt==0)/length(tt)
 
 
 ##################################
@@ -136,66 +124,67 @@ create_list <- function(l) {
   return(final_list)
 }
 
-#evidence_lists <- apply(new_test,1,create_list)
-
-# They are supposed to be the same, but they are not :((((
-net12 <- setEvidence(ml_grain, evidence=list(A="no",T="yes",L="no",B="no",E="yes",X="yes" ,D="yes"))
-pEvidence(net12)
-Ev1 <- setEvidence(ml_grain,nodes=as.vector(cnames2),states=as.vector(test[1,-2])) # S is no
-pEvidence(Ev1)
-######
-# Predict probabilities based on test data DOES NOT WORK ;(
-final_prob <- apply(new_test,1,function(line){
-  list_ev <- create_list(line)
-  Ev <- setEvidence(ml_grain,evidence=list_ev)
-  return(pEvidence(Ev))
-})
-####
-#length(final_prob)
-#dim(new_test)
 
 ## works
-final_prob2 <- c()
+
+Predictions <- c()
 Evid <- c()
 list_ev<- list()
 for (i in 1:nrow(new_test)){
   list_ev <- create_list(new_test[i,])
-  Evid <- setEvidence(prop_ml_grain,evidence=list_ev)  
-  final_prob2[i] <- pEvidence(Evid)
+  Evid <- setEvidence(ml_grain2,evidence=list_ev)  
+  probs <- querygrain(Evid)
+  
+  if (probs$S[1]>0.5){
+      Predictions[i] <- "no"  
+  }else{
+      Predictions[i] <- "yes" 
+  }
+  
 }
 ###
-hist(final_prob2)
 
-Ev <- setEvidence(ml_grain,evidence=create_list(new_test[1,])) # 
-pEvidence(Ev)
+# Confusion matrix with my graph
+table(test$S, Predictions)
 
-final_prob[150]
-final_prob2[1]
+# The real graph
+dag = model2network("[A][S][T|A][L|S][B|S][D|B:E][E|T:L][X|E]") #true graph
+dag_fit <- bn.fit(dag, train, method = "mle")
+dag_grain <- as.grain(dag_fit)
+dag_compile <- compile(dag_grain)
 
 
+S_probs <- c()
+S_probs<- apply(new_test,1,function(a){
+    Evid2 <- setEvidence(dag_compile,evidence=a)
+    probs <- querygrain(Evid2)$S
+    return(probs)
+})
 
-se1<-setEvidence(compile(ml_LS), evidence = list(S=c(1,0),new_test[1,]))
-pEvidence(se1)
-querygrain(se1)
+Predict_S <- c()
+Predict_S[which(S_probs[1,]>0.5)] <- "no"
+Predict_S[which(S_probs[2,]>=0.5)] <- "yes"
 
+table(test$S, Predict_S)
+
+################################################
+# Question 3
 
 plot(train_learn)
+mb_done <- mb(ml_fit,"S")
+#mb_done2 <- mb(ml_fit,"L")
+new_test3 <- new_test[,mb_done]
+S_probs <- c()
+S_probs3<- apply(new_test3,1,function(a){
+    Evid2 <- setEvidence(dag_compile,evidence=a)
+    probs <- querygrain(Evid2)$S
+    return(probs)
+})
 
-# Prediction Uniform
-prob_no <- ml_fit$S$prob["no"]
-s <- vector(length = nrow(test))
-for(i in 1:nrow(test)){
-  if(runif(1)<prob_no){
-    s[i] <- "no"
-  }else{
-    s[i] <- "yes"
-  }
-}
-# Confusion matrix
-table(test$S, s)
+Predict_S3 <- c()
+Predict_S3[which(S_probs3[1,]>0.5)] <- "no"
+Predict_S3[which(S_probs3[2,]>=0.5)] <- "yes"
 
-dag = model2network("[A][S][T|A][L|S][B|S][D|B:E][E|T:L][X|E]") #true graph
-plot(dag)
-arcs(dag)
-arcs(hc1)
-plot(hc1)
+table(test$S, Predict_S3)
+
+# Question 4
