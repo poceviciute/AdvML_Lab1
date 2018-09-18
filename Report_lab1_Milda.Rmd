@@ -1,0 +1,226 @@
+---
+title: "Lab1"
+author: "Milda Poceviciute"
+date: "18 September 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(bnlearn)
+library(gRain) 
+library(RBGL)
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("RBGL")
+library(gRbase)
+data("asia")
+```
+
+## Question 1
+
+I use different approaches to generate Bayesian Networks with the hill-climbing algorithm. In some cases I specify starting graphs, generate a random graph, use different restart and score settings. The resulting structures are ploted below:
+
+```{r, include=FALSE}
+BN1<-hc(asia)
+#summary(BN1)
+plot(BN1)
+title(BN1, main = "BN1: default settings (score=BIC)")
+#arcs(BN1)
+#vstructs(BN1)
+#cpdag(BN1)
+
+BN2 <- hc(asia, start = NULL, score = "aic")
+plot(BN2)
+title(BN2, main = "BN2: score = aic")
+#cpdag(BN2)
+
+BN3 <- hc(asia, start = NULL, score = "bde", restart = 2)
+plot(BN3)
+title(BN3, main = "BN3: score=bde, restart=2")
+#cpdag(BN3)
+
+
+#The imaginary or equivalent sample size of the prior distribution can be specified using the iss parameter; 
+#it specifies the weight of the prior compared to the sample and thus controls the smoothness of the posterior distribution.
+
+BN4 <- hc(asia, start = NULL, score = "bde", restart = 2, iss=10)
+plot(BN4)
+title(BN4, main = "BN4: score=bde, restart=2, iss=10")
+#cpdag(BN3)
+
+BN5 <- hc(asia, start = NULL, score = "bde", restart = 2, iss=100)
+plot(BN5)
+title(BN5, main = "BN5: score=bde, restart=2, iss=100")
+#cpdag(BN4)
+
+BN6 <- hc(asia, start = NULL, score = "bde", restart = 5, iss=50)
+plot(BN6)
+title(BN6, main = "BN6: score=bde, restart=5, iss=50")
+#cpdag(BN5)
+
+BN7 <- hc(asia, start = NULL, score = "bde", restart = 10, iss=50)
+plot(BN7)
+title(BN7, main = "BN7: score=bde, restart=10, iss=50")
+#cpdag(BN6)
+
+cnames <- colnames(asia)
+startg <- random.graph(nodes=cnames, num=1, method="melancon")
+plot(startg)
+title(startg, main = "Generated Random Starting Graph")
+
+BN8 <- hc(asia, start = startg)
+plot(BN8)
+title(BN8, main = "BN8: with the starting graph")
+
+BN9 <- hc(asia, start = startg, score = "bde", restart = 5, iss=10)
+plot(BN9)
+title(BN9, main = "BN9: BN8 + score = bde, restart = 5, iss=10 ")
+```
+
+From the plots above, I conclude that BIC (Bayesian Information Criterion) and BDE (Bayesian Dirichlet equivalent) produced equivalent graphs (BN1 and BN3). However, once iss parameter was provided for BDE, the graph was not equivalent anymore. ISS is equivalent sample size of the prior distribution: it specifies the weight of the prior compared to the sample (controls the smoothness of the posterior distribution).
+
+In example graph 7 (BN7), I notice that even if I provide a very different starting graph, the hill-climbing algorithm will still optimise it and make it more similar to most of my other graphs (for example, node S is linked only to the nodes L and B).
+
+From the graphs above, it is clear that different runs of the hill-climbing algorithm produces non-equivalent Bayesian Network structures.
+
+## Question 2
+
+You can also embed plots, for example:
+
+```{r }
+# Split data into 80% training and 20% testing data sets
+N <- nrow(asia)
+ind <- sample(1:N, size = 0.8*N)
+train <- asia[ind,]
+test <- asia[-ind,]
+# Remove column S for predictions from testing data set
+cnames2 <- colnames(test[-2])
+new_test <- test[,-2]
+
+# Generate a BN for training
+train_learn <- hc(train, start = NULL, restart = 10)
+summary(train_learn)
+plot(train_learn)
+title(train_learn, main="BN: default with restart = 10")
+
+# Learn parameters using ML
+ml_fit <- bn.fit(train_learn, train, method = "mle")
+ml_fit
+
+# Convert into grain format
+ml_grain <- as.grain(ml_fit)
+ml_grain <- compile(ml_grain) 
+```
+
+Use the gRain package on compiled grain format graph to do predictions on test data set
+
+```{r}
+S_probs2 <- c()
+S_probs2<- apply(new_test,1,function(a){
+    Evid2 <- setEvidence(ml_grain,evidence=a)
+    probs <- querygrain(Evid2)$S
+    return(probs)
+})
+
+Predict2 <- c()
+Predict2[which(S_probs2[1,]>0.5)] <- "no"
+Predict2[which(S_probs2[2,]>=0.5)] <- "yes"
+
+# Confussion Matrix
+table(test$S, Predict2)
+```
+
+The same predictions are made using the true graph (provided in the lab questions)
+
+```{r}
+# The real graph
+dag = model2network("[A][S][T|A][L|S][B|S][D|B:E][E|T:L][X|E]") #true graph
+dag_fit <- bn.fit(dag, train, method = "mle")
+dag_grain <- as.grain(dag_fit)
+dag_compile <- compile(dag_grain)
+
+
+S_probs <- c()
+S_probs<- apply(new_test,1,function(a){
+    Evid2 <- setEvidence(dag_compile,evidence=a)
+    probs <- querygrain(Evid2)$S
+    return(probs)
+})
+
+Predict_S <- c()
+Predict_S[which(S_probs[1,]>0.5)] <- "no"
+Predict_S[which(S_probs[2,]>=0.5)] <- "yes"
+
+# Confussion Matrix
+table(test$S, Predict_S)
+
+```
+
+
+## Question 3
+
+```{r}
+# Select only parents, children, and parents of children of S
+mb_done <- mb(ml_fit,"S")
+# Make a new testing data set only with the revelant nodes
+new_test3 <- new_test[,mb_done]
+# Predict the data
+S_probs3 <- c()
+S_probs3<- apply(new_test3,1,function(a){
+    Evid2 <- setEvidence(dag_compile,evidence=a)
+    probs <- querygrain(Evid2)$S
+    return(probs)
+})
+
+Predict3 <- c()
+Predict3[which(S_probs3[1,]>0.5)] <- "no"
+Predict3[which(S_probs3[2,]>=0.5)] <- "yes"
+# Confussion Matrix
+table(test$S, Predict3)
+
+```
+
+
+## Question 4
+
+```{r}
+# Naive Bayes
+cnames <- colnames(asia)
+naive_graph = empty.graph(cnames)
+arc.set = matrix(c("S", "A", "S","D", "S", "X", "S", "E", "S", "B", "S", "L", "S", "T"),
+                             ncol = 2, byrow = TRUE,
+                             dimnames = list(NULL, c("from", "to")))
+arcs(naive_graph) = arc.set
+plot(naive_graph)
+
+naive_fit <- bn.fit(naive_graph, train, method = "mle")
+# Using grain package"
+naive_grain <- as.grain(naive_fit)
+naive_grain <- compile(naive_grain) 
+
+
+S_probs4 <- c()
+S_probs4<- apply(new_test,1,function(a){
+    Evid2 <- setEvidence(naive_grain,evidence=a)
+    probs <- querygrain(Evid2)$S
+    return(probs)
+})
+
+Predict4 <- c()
+Predict4[which(S_probs4[1,]>0.5)] <- "no"
+Predict4[which(S_probs4[2,]>=0.5)] <- "yes"
+
+table(test$S, Predict4)
+
+```
+
+Compare results
+
+```{r}
+S_probs4[,30:40]
+S_probs3[,30:40]
+S_probs2[,30:40]
+S_probs[,30:40]
+
+```
