@@ -8,6 +8,10 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+```
+
+
+```{r,echo=FALSE}
 library(bnlearn)
 library(gRain) 
 library(RBGL)
@@ -15,13 +19,18 @@ library(RBGL)
 #biocLite("RBGL")
 library(gRbase)
 data("asia")
+
+missclassf <- function(table){
+    result <- (table[1,2] + table[2,1])/(table[1,2] + table[2,1]+table[1,1] + table[2,2])
+    return(result)
+}
 ```
 
 ## Question 1
 
 I use different approaches to generate Bayesian Networks with the hill-climbing algorithm. In some cases I specify starting graphs, generate a random graph, use different restart and score settings. The resulting structures are ploted below:
 
-```{r, include=FALSE}
+```{r, echo=FALSE}
 BN1<-hc(asia)
 #summary(BN1)
 plot(BN1)
@@ -128,7 +137,8 @@ Predict2[which(S_probs2[1,]>0.5)] <- "no"
 Predict2[which(S_probs2[2,]>=0.5)] <- "yes"
 
 # Confussion Matrix
-table(test$S, Predict2)
+conf2 <- table(test$S, Predict2)
+misscl2 <- missclassf(conf2)
 ```
 
 The same predictions are made using the true graph (provided in the lab questions)
@@ -153,7 +163,9 @@ Predict_S[which(S_probs[1,]>0.5)] <- "no"
 Predict_S[which(S_probs[2,]>=0.5)] <- "yes"
 
 # Confussion Matrix
-table(test$S, Predict_S)
+
+confT <- table(test$S, Predict_S)
+missclT <- missclassf(confT)
 
 ```
 
@@ -176,9 +188,10 @@ S_probs3<- apply(new_test3,1,function(a){
 Predict3 <- c()
 Predict3[which(S_probs3[1,]>0.5)] <- "no"
 Predict3[which(S_probs3[2,]>=0.5)] <- "yes"
-# Confussion Matrix
-table(test$S, Predict3)
 
+# Confussion Matrix
+conf3 <- table(test$S, Predict3)
+misscl3 <- missclassf(conf3)
 ```
 
 
@@ -211,16 +224,25 @@ Predict4 <- c()
 Predict4[which(S_probs4[1,]>0.5)] <- "no"
 Predict4[which(S_probs4[2,]>=0.5)] <- "yes"
 
-table(test$S, Predict4)
-
+conf4 <- table(test$S, Predict4)
+misscl4 <- missclassf(conf4)
 ```
 
 Compare results
 
-```{r}
-S_probs4[,30:40]
-S_probs3[,30:40]
-S_probs2[,30:40]
-S_probs[,30:40]
+```{r, echo=FALSE}
+# S_probs4[,30:40]
+# S_probs3[,30:40]
+# S_probs2[,30:40]
+# S_probs[,30:40]
+
+cat(paste0("Missclassification rate by the BN based on the ture graph is ",missclT,"."))
+cat("\n")
+cat(paste0("Missclassification rate from question 2 is ",misscl2,"."))
+cat("\n")
+cat(paste0("Missclassification rate from question 3 is ",misscl3,"."))
+cat("\n")
+cat(paste0("Missclassification rate by Naive Bayes Classifier is ",misscl4,"."))
+cat("\n")
 
 ```
