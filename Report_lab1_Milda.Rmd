@@ -3,15 +3,17 @@ title: "Lab1"
 author: "Milda Poceviciute"
 date: "18 September 2018"
 output: pdf_document
+fig_width: 6
+fig_height: 4
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,dev = 'pdf')
 
 ```
 
 
-```{r,echo=FALSE}
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
 library(bnlearn)
 library(gRain) 
 library(RBGL)
@@ -28,13 +30,15 @@ missclassf <- function(table){
 
 ## Question 1
 
-I use different approaches to generate Bayesian Networks with the hill-climbing algorithm. In some cases I specify starting graphs, generate a random graph, use different restart and score settings. The resulting structures are ploted below:
+I use different approaches to generate Bayesian Networks with the hill-climbing algorithm. In some cases I specify starting graphs (i.e., generate a random and specific graphs), use different restart and score settings. The resulting structures are plotted below:
 
 ```{r, echo=FALSE}
+#par( mfrow = c(1,1) )
 BN1<-hc(asia)
 #summary(BN1)
 plot(BN1)
 title(BN1, main = "BN1: default settings (score=BIC)")
+
 #arcs(BN1)
 #vstructs(BN1)
 #cpdag(BN1)
@@ -42,6 +46,7 @@ title(BN1, main = "BN1: default settings (score=BIC)")
 BN2 <- hc(asia, start = NULL, score = "aic")
 plot(BN2)
 title(BN2, main = "BN2: score = aic")
+
 #cpdag(BN2)
 
 BN3 <- hc(asia, start = NULL, score = "bde", restart = 2)
@@ -87,15 +92,16 @@ plot(BN9)
 title(BN9, main = "BN9: BN8 + score = bde, restart = 5, iss=10 ")
 ```
 
-From the plots above, I conclude that BIC (Bayesian Information Criterion) and BDE (Bayesian Dirichlet equivalent) produced equivalent graphs (BN1 and BN3). However, once iss parameter was provided for BDE, the graph was not equivalent anymore. ISS is equivalent sample size of the prior distribution: it specifies the weight of the prior compared to the sample (controls the smoothness of the posterior distribution).
+Hill climbing algorithm finds local optimal solution instead of the global. Hence, having different starting parameters can produce non-equivalent final structures. The direction of the arrows statistically has no difference, so the graphs that have same nodes connected but in opposite directions are still equivalent.
 
-In example graph 7 (BN7), I notice that even if I provide a very different starting graph, the hill-climbing algorithm will still optimise it and make it more similar to most of my other graphs (for example, node S is linked only to the nodes L and B).
+From the plots above, I conclude that BIC (Bayesian Information Criterion) and BDE (Bayesian Dirichlet equivalent) produced equivalent graphs (BN1 and BN3), but all other structures are non-equivalent. 
 
 From the graphs above, it is clear that different runs of the hill-climbing algorithm produces non-equivalent Bayesian Network structures.
 
 ## Question 2
 
-You can also embed plots, for example:
+In this question the data is split into training (80%) and testing (20%) data sets. Then a local optimal structure is found using the Hill Climbing method. Afterwards the parameters are learnt using Maximum Likelihood algorithm, and the resulting graph is compiled (the steps of moralization and triangulation are done).
+
 
 ```{r }
 # Split data into 80% training and 20% testing data sets
@@ -140,8 +146,19 @@ Predict2[which(S_probs2[2,]>=0.5)] <- "yes"
 conf2 <- table(test$S, Predict2)
 misscl2 <- missclassf(conf2)
 ```
+```{r, echo=FALSE}
 
-The same predictions are made using the true graph (provided in the lab questions)
+cat("The confusion matrix is:")
+cat("\n")
+cat("\n")
+conf2
+cat("\n")
+cat(paste0("Missclassification rate is ",misscl2,"."))
+cat("\n")
+
+```
+
+The same predictions are made using the true graph (provided in the lab questions).
 
 ```{r}
 # The real graph
@@ -169,8 +186,34 @@ missclT <- missclassf(confT)
 
 ```
 
+```{r, echo=FALSE}
+
+cat("The confusion matrix is:")
+cat("\n")
+cat("\n")
+confT
+cat("\n")
+cat(paste0("Missclassification rate is ",missclT,"."))
+cat("\n")
+
+```
+
+The results of a BN learnt on 80% of data are exactly the same as the results of the true Asian BN. To understand better why this is happening, we can look again at the corresponding BNs plots:
+
+```{r, echo=FALSE}
+
+plot(train_learn)
+title(train_learn, main="BN Question 2")
+plot(dag)
+title(train_learn, main="True BN")
+```
+
+
+We notice that all of them have the same structure around S: the node S is connected only to the nodes L and B (both BN have the same Markov Blanket of S). Therefore, they produce the same predictions.
 
 ## Question 3
+
+In this question I am using only the Markov blanket of node S to do the predictions. That is, S parents plus its children plus the parents of its children minus S itself.
 
 ```{r}
 # Select only parents, children, and parents of children of S
@@ -194,8 +237,36 @@ conf3 <- table(test$S, Predict3)
 misscl3 <- missclassf(conf3)
 ```
 
+```{r, echo=FALSE}
+
+cat("The confusion matrix is:")
+cat("\n")
+cat("\n")
+conf3
+cat("\n")
+cat(paste0("Missclassification rate is ",misscl3,"."))
+cat("\n")
+
+```
+
+## Comparison of BNs from Quesions 2 and 3
+
+```{r, echo=FALSE}
+
+cat(paste0("Missclassification rate by the BN based on the ture graph is ",missclT,"."))
+cat("\n")
+cat(paste0("Missclassification rate from question 2 is ",misscl2,"."))
+cat("\n")
+cat(paste0("Missclassification rate from question 3 is ",misscl3,"."))
+cat("\n")
+
+```
+
+All three BNs have the same misclassifications rate of `r misscl2`. As the Markov Blanket of S is the same in the learnt BN and the true BN, the predictions in the question 3 are also the same as the predictions in the question 2.
 
 ## Question 4
+
+Naive Bayes classifier has a graph with all arrows pointing from S towards other nodes. This indicates that the other nodes are  independent from each other given the class label. The corresponding graph is plotted below:
 
 ```{r}
 # Naive Bayes
@@ -206,7 +277,11 @@ arc.set = matrix(c("S", "A", "S","D", "S", "X", "S", "E", "S", "B", "S", "L", "S
                              dimnames = list(NULL, c("from", "to")))
 arcs(naive_graph) = arc.set
 plot(naive_graph)
+```
 
+The same procedure of learning the parameters, compiling the resulting structure and making predictions based on the posterior distribution of S is done below.
+
+```{r}
 naive_fit <- bn.fit(naive_graph, train, method = "mle")
 # Using grain package"
 naive_grain <- as.grain(naive_fit)
@@ -228,13 +303,9 @@ conf4 <- table(test$S, Predict4)
 misscl4 <- missclassf(conf4)
 ```
 
-Compare results
+## Comparison of all BNs
 
 ```{r, echo=FALSE}
-# S_probs4[,30:40]
-# S_probs3[,30:40]
-# S_probs2[,30:40]
-# S_probs[,30:40]
 
 cat(paste0("Missclassification rate by the BN based on the ture graph is ",missclT,"."))
 cat("\n")
@@ -246,3 +317,6 @@ cat(paste0("Missclassification rate by Naive Bayes Classifier is ",misscl4,"."))
 cat("\n")
 
 ```
+
+The Naive Bayes Classifier produced slightly worse results. This is due to the loss of some information (i.e., the Markov Blanket of S in Naive Bayes is different from the Markov Blanket in other questions). As mentioned before the other BNs, they all produced the same results due to teh similarity in teh structure of the graphs.
+
