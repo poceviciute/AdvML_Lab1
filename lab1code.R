@@ -48,20 +48,34 @@ plot(hc7)
 hc8 <- hc(asia, start = startgraph, score = "bde", restart = 10, iss=100)
 plot(hc8)
 
-all.equal(hc8, hc2) #the same
-all.equal(hc8, hc4)#the same
-all.equal(hc1,hc7) 
-all.equal(hc1, hc6) 
-all.equal(hc1,hc2)
-all.equal(hc2,hc3)
-all.equal(hc2, hc4)#the same
-all.equal(hc3,hc4)
+all.equal(hc1, hc2)
 all.equal(hc1, hc3)
-all.equal(hc1,hc4)
-all.equal(hc3, hc5) #the same
-all.equal(hc2, hc5)
-all.equal(hc4,hc5)
+all.equal(hc1, hc4)
 all.equal(hc1, hc5)
+all.equal(hc1, hc6) 
+all.equal(hc1, hc7) 
+all.equal(hc1, hc8) 
+all.equal(hc2, hc3)
+all.equal(hc2, hc4)
+all.equal(hc2, hc5)
+all.equal(hc2, hc6)
+all.equal(hc2, hc7)
+all.equal(hc2, hc8)
+all.equal(hc3, hc4)
+all.equal(hc3, hc5)
+all.equal(hc3, hc6)
+all.equal(hc3, hc7)
+all.equal(hc3, hc8)
+all.equal(hc4, hc5)
+all.equal(hc4, hc6)
+all.equal(hc4, hc7)
+all.equal(hc4, hc8)
+all.equal(hc5, hc6)
+all.equal(hc5, hc7)
+all.equal(hc5, hc8)
+all.equal(hc6, hc7)
+all.equal(hc6, hc8)
+all.equal(hc7, hc8)
 
 
 #2
@@ -80,47 +94,118 @@ bn.fit.dotplot(ml_fit$S)
 
 
 ml_grain <- as.grain(ml_fit)
-ml_comp <- compile(ml_grain)
-ml_LS <- propagate.grain(ml_grain)
-compile(ml_LS)
-querygrain(ml_LS)
+ml_comp <- compile(ml_grain) #moralization, triangulation, now ready to predict
 
 #apply setevidence to every row in test without S to get prob. for S
 #then classify S for each row with prob.
-new_test <- test[,-2]
-se1<-setEvidence(compile(ml_LS), evidence = list(S=c(1,0),new_test[1,]))
-pEvidence(se1)
-querygrain(se1)
-se2<-setEvidence(compile(ml_LS), evidence = list(S=c(1,0),new_test[2,]))
-pEvidence(se2)
-se3<-setEvidence(compile(ml_LS), evidence = list(S=c(1,0),new_test[3,]))
-pEvidence(se3)
-se8<-setEvidence(compile(ml_LS), evidence = list(new_test[8,]))
-pEvidence(se8)
-querygrain(se8)
-grain_pred <- apply(new_test, 1, function(x){pEvidence(setEvidence(ml_LS, evidence = x))})
-querygrain(setEvidence(ml_LS, evidence = list(new_test[1,])))
-querygrain(setEvidence(ml_LS, evidence = list(test[1,-4])))
-querygrain(setEvidence(ml_LS, evidence = list(test[1,-6])))
-querygrain(ml_grain, nodes = nodeNames(ml_grain)) #marginal
-querygrain(ml_grain, nodes = nodeNames(ml_grain), type = "conditional")
+new_test <- test[,-which(colnames(test)=="S")]
+
 
 # Prediction
-prob_no <- ml_fit$S$prob["no"]
-s <- vector(length = nrow(test))
-for(i in 1:nrow(test)){
-  if(runif(1)<prob_no){
-    s[i] <- "no"
-  }else{
-    s[i] <- "yes"
-  }
-}
+grain_pred <- apply(new_test, 1, function(x){
+  setev <- setEvidence(ml_comp, evidence = x)
+  querygrain(setev)$S})
+
+gp_no<-grain_pred["no",]
+gp_yes<-grain_pred["yes",]
+
+pred_S <- vector()
+pred_S[which(gp_no>0.5)] <- "no"
+pred_S[which(gp_yes>=0.5)] <- "yes"
+
 # Confusion matrix
-table(test$S, s)
+table(test$S, pred_S)
 
-dag = model2network("[A][S][T|A][L|S][B|S][D|B:E][E|T:L][X|E]") #true graph
+# qg1<-querygrain(setEvidence(ml_comp, evidence = list(new_test[1,])))
+# qg1$S
+# querygrain(setEvidence(ml_comp, evidence = list(test[1,-4])))
+# querygrain(setEvidence(ml_comp, evidence = list(test[1,-6])))
+# querygrain(ml_grain, nodes = nodeNames(ml_grain)) #marginal
+# querygrain(ml_grain, nodes = nodeNames(ml_grain), type = "conditional")
 
-plot(dag)
-arcs(dag)
-arcs(hc1)
-plot(hc1)
+
+dag <- model2network("[A][S][T|A][L|S][B|S][D|B:E][E|T:L][X|E]") #true graph
+dag_fit <- bn.fit(dag, train, method = "mle")
+#all.equal(ml_fit, dag_fit)
+dag_grain <- as.grain(dag_fit)
+dag_comp <- compile(dag_grain)
+dag_pred <- apply(new_test, 1, function(x){
+  setev <- setEvidence(dag_comp, evidence = x)
+  querygrain(setev)$S})
+dag_no<-dag_pred["no",]
+dag_yes<-dag_pred["yes",]
+
+# Prediction
+dagpred_S <- vector()
+dagpred_S[which(dag_no>0.5)] <- "no"
+dagpred_S[which(dag_yes>=0.5)] <- "yes"
+
+# Confusion matrix
+table(test$S, dagpred_S)
+
+# plot(dag)
+# arcs(dag)
+# arcs(train_learn)
+# plot(hc1)
+
+## works well because we have a small graph so we can do exact
+#(If they have the same markov blanket they will produce the same results. They will predict the same.)
+#(Network is small, not that much data.)
+
+# 3
+
+markov_blanket <- mb(ml_fit, "S")
+blanket_test <- test[,markov_blanket]
+
+mb_pred <- apply(blanket_test, 1, function(x){
+  setev <- setEvidence(ml_comp, evidence = x)
+  querygrain(setev)$S})
+
+mb_no<-mb_pred["no",]
+mb_yes<-mb_pred["yes",]
+
+mb_S <- vector()
+mb_S[which(mb_no>0.5)] <- "no"
+mb_S[which(mb_yes>=0.5)] <- "yes"
+
+table(test$S, mb_S)
+
+
+#### 4 Naive-Bayes
+
+# Construct naive bayes network
+n_names <- colnames(train)
+n_names <- n_names[-which(n_names=="S")]
+nb <- empty.graph(c(n_names, "S"))
+arc_set <- matrix(c(rep("S",length(n_names)),n_names), ncol = 2,
+                  byrow = FALSE, dimnames = list(NULL, c("from", "to")))
+arcs(nb) <- arc_set
+plot(nb)
+
+# Fit network
+nb_fit <- bn.fit(nb, train, method = "mle")
+nb_grain <- as.grain(nb_fit)
+nb_comp <- compile(nb_grain)
+
+# Prediction
+nb_pred <- apply(new_test, 1, function(x){
+  setev <- setEvidence(nb_comp, evidence = x)
+  querygrain(setev)$S})
+nb_no<-nb_pred["no",]
+nb_yes<-nb_pred["yes",]
+
+nb_S <- vector()
+nb_S[which(nb_no>0.5)] <- "no"
+nb_S[which(nb_yes>=0.5)] <- "yes"
+
+# Confusion matrix
+table(test$S, nb_S)
+#bn <- naive.bayes(train, "S")
+#plot(bn)
+
+
+#Why is S pointing to the other variables and not the other way around?
+#S disease, the other are symptoms. Disease causes the symptoms. 
+#They are distributed in a certain way given the class variable. 
+#The other way around is computationally demanding, but can be done 
+#(but it's not naive bayes because everything is made dependent).

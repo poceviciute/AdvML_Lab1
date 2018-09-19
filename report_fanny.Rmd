@@ -1,0 +1,242 @@
+---
+title: '732A96 Lab 1: Graphical models'
+author: "Fanny Karelius (fanka300)"
+date: "18 september 2018"
+output:
+  html_document: default
+---
+
+#Question 1
+
+With a data set *Asia*, we show that multiple runs of the hill-climbing algorithm (to learn the structure of a Bayesian network) can return non-equivalent Bayesian network structures (BNs).
+
+```{r, eval=TRUE, message=FALSE}
+library(bnlearn)
+library(gRain) 
+library(RBGL)
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("RBGL")
+library(gRbase)
+
+#1
+data("asia")
+summary(asia)
+
+hc1<-hc(asia)
+hc2 <- hc(asia, start = NULL, score = "bde", restart = 2, iss=100)
+hc3 <- hc(asia, start = NULL, score = "bde", restart = 2, iss=1000)
+hc4 <- hc(asia, start = NULL, score = "bde", restart = 10, iss=100)
+hc5 <- hc(asia, start = NULL, score = "bde", restart = 10, iss=1000)
+hc6 <- hc(asia, start = NULL, restart = 10)
+startgraph <- random.graph(nodes=colnames(asia), num=1) #plot(startgraph)
+hc7 <- hc(asia, start = startgraph)
+hc8 <- hc(asia, start = startgraph, score = "bde", restart = 10, iss=100)
+
+par(mfrow=c(1,1))
+plot(hc1, main = "Default settings")
+plot(hc2, main = "bde, restart=2, iss=100")
+plot(hc3, main = "bde, restart=2, iss=1000")
+plot(hc4, main = "bde, restart=10, iss=100")
+plot(hc5, main = "bde, restart=10, iss=1000")
+plot(hc6, main = "restart=10")
+plot(hc7, main = "random startgraph")
+plot(hc8, main = "random startgraph, bde, restart=10, iss=100")
+
+all.equal(hc1, hc2)
+all.equal(hc1, hc3)
+all.equal(hc1, hc4)
+all.equal(hc1, hc5)
+all.equal(hc1, hc6) 
+all.equal(hc1, hc7) 
+all.equal(hc1, hc8) 
+all.equal(hc2, hc3)
+all.equal(hc2, hc4)
+all.equal(hc2, hc5)
+all.equal(hc2, hc6)
+all.equal(hc2, hc7)
+all.equal(hc2, hc8)
+all.equal(hc3, hc4)
+all.equal(hc3, hc5)
+all.equal(hc3, hc6)
+all.equal(hc3, hc7)
+all.equal(hc3, hc8)
+all.equal(hc4, hc5)
+all.equal(hc4, hc6)
+all.equal(hc4, hc7)
+all.equal(hc4, hc8)
+all.equal(hc5, hc6)
+all.equal(hc5, hc7)
+all.equal(hc5, hc8)
+all.equal(hc6, hc7)
+all.equal(hc6, hc8)
+all.equal(hc7, hc8)
+```
+
+As can be seen by the plots and the ` all.equal` function, the hill-climbing algorithm can return non-equivalent BNs. This is because the hill-climbing algorithm finds local optimum, not the global optimum so with different initial structures the algorithm is going to find different local optima. 
+
+#Question 2
+
+The Asia data set was split into training data (80% of data) and testing data (20% of data). Using hill-climbing a network was learned on the training data. Then, using maximum likelihood, the parameters were learnt. The network was compiled (moralization and triangulation) and then the network was tested using the test data. The variable $S$ was classified into "yes" or "no" depending on the posterior probabilities obtained.
+
+  
+```{r, eval=TRUE}
+N <- nrow(asia)
+ind <- sample(1:N, size = 0.8*N)
+train <- asia[ind,]
+test <- asia[-ind,]
+
+train_learn <- hc(train)
+summary(train_learn)
+plot(train_learn)
+ml_fit <- bn.fit(train_learn, train, method = "mle")
+
+ml_grain <- as.grain(ml_fit)
+ml_comp <- compile(ml_grain) #moralization, triangulation, now ready to predict
+
+# Test data without S
+new_test <- test[,-which(colnames(test)=="S")]
+
+### Prediction
+# Obtain posterior probabilities
+grain_pred <- apply(new_test, 1, function(x){
+  setev <- setEvidence(ml_comp, evidence = x)
+  querygrain(setev)$S})
+
+# Split probabilities into two vectors, one for "no" and one for "yes"
+gp_no<-grain_pred["no",]
+gp_yes<-grain_pred["yes",]
+
+# Predict
+pred_S <- vector()
+pred_S[which(gp_no>0.5)] <- "no"
+pred_S[which(gp_yes>=0.5)] <- "yes"
+
+# Confusion matrix
+cm1<-table(test$S, pred_S)
+cm1
+
+# Missclassification rate
+missclass <- function(mytable){
+  (mytable[1,2]+mytable[2,1])/sum(mytable)
+}
+
+missclass(cm1)
+
+## True network
+
+dag <- model2network("[A][S][T|A][L|S][B|S][D|B:E][E|T:L][X|E]") #true graph
+plot(dag, main = "True graph")
+dag_fit <- bn.fit(dag, train, method = "mle")
+#all.equal(ml_fit, dag_fit)
+dag_grain <- as.grain(dag_fit)
+dag_comp <- compile(dag_grain)
+
+# Prediction
+dag_pred <- apply(new_test, 1, function(x){
+  setev <- setEvidence(dag_comp, evidence = x)
+  querygrain(setev)$S})
+dag_no<-dag_pred["no",]
+dag_yes<-dag_pred["yes",]
+
+dagpred_S <- vector()
+dagpred_S[which(dag_no>0.5)] <- "no"
+dagpred_S[which(dag_yes>=0.5)] <- "yes"
+
+# Confusion matrix
+cm2 <- table(test$S, dagpred_S)
+cm2
+
+# Missclassification rate
+missclass(cm2)
+
+# Comparison
+all.equal(grain_pred, dag_pred)
+```
+
+As can be seen by the confusion matrices and the missclassification rates, the trained BN and the true BN performed just as well. Looking at the posterior probabilities obtained by both, the results are the same.
+The true BN and the trained BN have the same Markov blanket and therefore their predictions are the same. The only difference between the two BNs is that the true BN has an arc between $A$ and $T$, but these nodes are not directly linked to $S$.
+
+
+#Question 3
+ 
+Using the Markov blanket of $S$ (i.e. its parents, its children, and the parents of its children minus $S$ itself), $S$ was classified. 
+
+```{r, eval=TRUE}
+# Markov blanket
+markov_blanket <- mb(ml_fit, "S")
+blanket_test <- test[,markov_blanket]
+
+# Prediction
+mb_pred <- apply(blanket_test, 1, function(x){
+  setev <- setEvidence(ml_comp, evidence = x)
+  querygrain(setev)$S})
+
+mb_no<-mb_pred["no",]
+mb_yes<-mb_pred["yes",]
+
+mb_S <- vector()
+mb_S[which(mb_no>0.5)] <- "no"
+mb_S[which(mb_yes>=0.5)] <- "yes"
+
+# Confusion matrix
+cm3 <- table(test$S, mb_S)
+cm3
+
+# Missclassification rate
+missclass(cm3)
+
+```
+
+The results are the same as in Question 2 because the Markov blanket is the same for the trained BN and the true graph and there are no other nodes connected to $S$.
+
+#Question 4
+
+Question 2 was repeated using a Naive-Bayes classifier (i.e. the predictive variables are independent given the class variable). There are directed arcs going from $S$ to the other variables.
+
+```{r, eval=TRUE}
+# Construct naive bayes network
+n_names <- colnames(train)
+n_names <- n_names[-which(n_names=="S")]
+nb <- empty.graph(c(n_names, "S"))
+arc_set <- matrix(c(rep("S",length(n_names)),n_names), ncol = 2,
+                  byrow = FALSE, dimnames = list(NULL, c("from", "to")))
+arcs(nb) <- arc_set
+plot(nb)
+
+# Fit network
+nb_fit <- bn.fit(nb, train, method = "mle")
+nb_grain <- as.grain(nb_fit)
+nb_comp <- compile(nb_grain)
+
+# Prediction
+nb_pred <- apply(new_test, 1, function(x){
+  setev <- setEvidence(nb_comp, evidence = x)
+  querygrain(setev)$S})
+nb_no<-nb_pred["no",]
+nb_yes<-nb_pred["yes",]
+
+nb_S <- vector()
+nb_S[which(nb_no>0.5)] <- "no"
+nb_S[which(nb_yes>=0.5)] <- "yes"
+
+# Confusion matrix
+cm4 <- table(test$S, nb_S)
+cm4
+
+# Missclassification rate
+missclass(cm4)
+
+```
+
+The Naive-Bayes classifier performed worse than the networks in Questions 2 and 3. That may be due to that since the other nodes are not connected some information between them is loss. The assumption that the variables are independent given the class label may not hold.
+
+#Question 5
+
+The true BN and the trained BN in Question 2 have the same Markov blanket and therefore their predictions are the same. The only difference between the two BNs is that the true BN as an arc between $A$ and $T$, but these nodes are not directly linked to $S$. The results in Question 3 are the same as in Question 2 because the Markov blanket is the same for the trained BN and the true graph and there are no other nodes connected to $S$ and so those nodes do not add any more information to our prediction.
+
+The Naive-Bayes classifier in Question 4 performed worse than the networks in Questions 2 and 3. That may be due to that since the other nodes are not connected some information between them is loss. The assumption that the variables are independent given the class label may not hold (it is a naive assumption).
+
+#Appendix
+
+```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+```
