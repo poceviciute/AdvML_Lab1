@@ -2,13 +2,13 @@
 title: "Lab1"
 author: "Milda Poceviciute"
 date: "18 September 2018"
-output: pdf_document
-fig_width: 6
-fig_height: 4
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,dev = 'pdf')
+knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
@@ -32,13 +32,13 @@ missclassf <- function(table){
 
 I use different approaches to generate Bayesian Networks with the hill-climbing algorithm. In some cases I specify starting graphs (i.e., generate a random and specific graphs), use different restart and score settings. The resulting structures are plotted below:
 
-```{r, echo=FALSE}
+```{r, echo=FALSE,fig.width=6, fig.height=5}
 #par( mfrow = c(1,1) )
 BN1<-hc(asia)
 #summary(BN1)
 plot(BN1)
 title(BN1, main = "BN1: default settings (score=BIC)")
-
+#cat("\n")
 #arcs(BN1)
 #vstructs(BN1)
 #cpdag(BN1)
@@ -46,7 +46,7 @@ title(BN1, main = "BN1: default settings (score=BIC)")
 BN2 <- hc(asia, start = NULL, score = "aic")
 plot(BN2)
 title(BN2, main = "BN2: score = aic")
-
+#cat("\n")
 #cpdag(BN2)
 
 BN3 <- hc(asia, start = NULL, score = "bde", restart = 2)
