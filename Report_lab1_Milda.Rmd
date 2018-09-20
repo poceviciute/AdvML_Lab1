@@ -3,6 +3,7 @@ title: "Lab1"
 author: "Milda Poceviciute"
 date: "18 September 2018"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
@@ -32,7 +33,7 @@ missclassf <- function(table){
 
 I use different approaches to generate Bayesian Networks with the hill-climbing algorithm. In some cases I specify starting graphs (i.e., generate a random and specific graphs), use different restart and score settings. The resulting structures are plotted below:
 
-```{r, echo=FALSE,fig.width=6, fig.height=5}
+```{r, echo=FALSE,fig.width=6, fig.height=4}
 #par( mfrow = c(1,1) )
 BN1<-hc(asia)
 #summary(BN1)
@@ -94,13 +95,11 @@ title(BN9, main = "BN9: BN8 + score = bde, restart = 5, iss=10 ")
 
 Hill climbing algorithm finds local optimal solution instead of the global. Hence, having different starting parameters can produce non-equivalent final structures. The direction of the arrows statistically has no difference, so the graphs that have same nodes connected but in opposite directions are still equivalent.
 
-From the plots above, I conclude that BIC (Bayesian Information Criterion) and BDE (Bayesian Dirichlet equivalent) produced equivalent graphs (BN1 and BN3), but all other structures are non-equivalent. 
-
-From the graphs above, it is clear that different runs of the hill-climbing algorithm produces non-equivalent Bayesian Network structures.
+From the plots above, I conclude that BIC (Bayesian Information Criterion) and BDE (Bayesian Dirichlet equivalent) produced equivalent graphs (BN1 and BN3), but all other structures are non-equivalent. Hence, it is clear that different runs of the hill-climbing algorithm produces non-equivalent Bayesian Network structures.
 
 ## Question 2
 
-In this question the data is split into training (80%) and testing (20%) data sets. Then a local optimal structure is found using the Hill Climbing method. Afterwards the parameters are learnt using Maximum Likelihood algorithm, and the resulting graph is compiled (the steps of moralization and triangulation are done).
+In this question the data is split into training (80%) and testing (20%) data sets. Then a (local) optimal structure is determined using the Hill Climbing method. Afterwards the parameters are learnt using Maximum Likelihood algorithm, and the resulting graph is compiled (the steps of moralization and triangulation are done).
 
 
 ```{r }
@@ -128,7 +127,7 @@ ml_grain <- as.grain(ml_fit)
 ml_grain <- compile(ml_grain) 
 ```
 
-Use the gRain package on compiled grain format graph to do predictions on test data set
+Afterwards I use the gRain package on compiled grain format graph to do predictions on test data set:
 
 ```{r}
 S_probs2 <- c()
@@ -146,6 +145,7 @@ Predict2[which(S_probs2[2,]>=0.5)] <- "yes"
 conf2 <- table(test$S, Predict2)
 misscl2 <- missclassf(conf2)
 ```
+
 ```{r, echo=FALSE}
 
 cat("The confusion matrix is:")
@@ -198,18 +198,7 @@ cat("\n")
 
 ```
 
-The results of a BN learnt on 80% of data are exactly the same as the results of the true Asian BN. To understand better why this is happening, we can look again at the corresponding BNs plots:
-
-```{r, echo=FALSE}
-
-plot(train_learn)
-title(train_learn, main="BN Question 2")
-plot(dag)
-title(train_learn, main="True BN")
-```
-
-
-We notice that all of them have the same structure around S: the node S is connected only to the nodes L and B (both BN have the same Markov Blanket of S). Therefore, they produce the same predictions.
+The results of a BN learnt on 80% of data are exactly the same as the results of the true Asian BN. 
 
 ## Question 3
 
@@ -228,6 +217,7 @@ S_probs3<- apply(new_test3,1,function(a){
     return(probs)
 })
 
+# Classify the test data
 Predict3 <- c()
 Predict3[which(S_probs3[1,]>0.5)] <- "no"
 Predict3[which(S_probs3[2,]>=0.5)] <- "yes"
@@ -249,24 +239,12 @@ cat("\n")
 
 ```
 
-## Comparison of BNs from Quesions 2 and 3
+BN that uses only Markov Blanket of S produced exactly the same accuracy of predictions as the previous two BNs.
 
-```{r, echo=FALSE}
-
-cat(paste0("Missclassification rate by the BN based on the ture graph is ",missclT,"."))
-cat("\n")
-cat(paste0("Missclassification rate from question 2 is ",misscl2,"."))
-cat("\n")
-cat(paste0("Missclassification rate from question 3 is ",misscl3,"."))
-cat("\n")
-
-```
-
-All three BNs have the same misclassifications rate of `r misscl2`. As the Markov Blanket of S is the same in the learnt BN and the true BN, the predictions in the question 3 are also the same as the predictions in the question 2.
 
 ## Question 4
 
-Naive Bayes classifier has a graph with all arrows pointing from S towards other nodes. This indicates that the other nodes are  independent from each other given the class label. The corresponding graph is plotted below:
+Naive Bayes classifier has a graph with all arrows pointing from S towards other nodes. This indicates that the other nodes are independent from each other given the class label. The corresponding graph is plotted below:
 
 ```{r}
 # Naive Bayes
@@ -279,7 +257,7 @@ arcs(naive_graph) = arc.set
 plot(naive_graph)
 ```
 
-The same procedure of learning the parameters, compiling the resulting structure and making predictions based on the posterior distribution of S is done below.
+The same procedure of learning the parameters, compiling the resulting structure and making predictions based on the posterior distribution of S is done below:
 
 ```{r}
 naive_fit <- bn.fit(naive_graph, train, method = "mle")
@@ -303,7 +281,20 @@ conf4 <- table(test$S, Predict4)
 misscl4 <- missclassf(conf4)
 ```
 
-## Comparison of all BNs
+```{r, echo=FALSE}
+
+cat("The confusion matrix is:")
+cat("\n")
+cat("\n")
+conf4
+cat("\n")
+cat(paste0("Missclassification rate is ",misscl4,"."))
+cat("\n")
+
+```
+
+# Question 5 - Comparison of all BNs
+
 
 ```{r, echo=FALSE}
 
@@ -318,5 +309,25 @@ cat("\n")
 
 ```
 
-The Naive Bayes Classifier produced slightly worse results. This is due to the loss of some information (i.e., the Markov Blanket of S in Naive Bayes is different from the Markov Blanket in other questions). As mentioned before the other BNs, they all produced the same results due to teh similarity in teh structure of the graphs.
+As seen from above, the results of the first 3 BNs are exactly the same. To understand better why this is happening, we can look again at the corresponding BNs plots:
+
+```{r, echo=FALSE}
+
+plot(train_learn)
+title(train_learn, main="BN Question 2")
+plot(dag)
+title(train_learn, main="True BN")
+```
+
+
+We notice that both plots have the same structure around S: the node S is connected only to the nodes L and B (both BN have the same Markov Blanket of S). This indicates that the Markov Blanket of S is the same in the learnt BN from question 2 and the true BN. The predictions in the question 3 specifically uses only the Markov Blanket of S. Therefore, they all produce the same predictions.
+
+The Naive Bayes Classifier produced slightly worse results. This is due to the loss of some information (for example, the Markov Blanket of S in Naive Bayes is different from the Markov Blanket in other questions). 
+
+#Appendix
+
+```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+
+```
+
 
