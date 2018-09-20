@@ -91,7 +91,7 @@ plot(BN6, main="BN6 - with Random Starting Graph")
 
 From the graphs above, it is clear that different runs of the hill-climbing algorithm produces non-equivalent Bayesian Network structures.
 
-By forcing 3 arcs as the whitelist indicates, the algorithm delievers BN1 which is the same as the complete BN. However, without the whitelist the algorithm yields BN2 which has one arc less than BN1. The arc A -> T is missing here. For BN3 _restart=5_ is specified and direction of one arc is changed compared to BN2 as from (S -> L) to (L -> S). 
+By forcing 3 arcs as the whitelist indicates, the algorithm delivers BN1 which is the same as the complete BN. However, without the whitelist the algorithm yields BN2 which has one arc less than BN1. The arc A -> T is missing here. For BN3 _restart=5_ is specified and direction of one arc is changed compared to BN2 as from (S -> L) to (L -> S). 
 
 Hill-climbing algorithm is a heuristic approach and unfortunately is not asymptotically correct. Moreover, statistically BN2 and BN3 are indistinguishable. 
 
@@ -322,7 +322,7 @@ The Naive Bayes Classifier produced slightly worse results.
 
 The true BN and the trained BN in Question 2 have the same Markov blanket and therefore their predictions are the same. The only difference between the two BNs is that the true BN has an arc between $A$ and $T$, but these nodes are not directly linked to $S$. The results in Question 3 are the same as in Question 2 because the Markov blanket is the same for the trained BN and the true graph and there are no other nodes connected to $S$ and so those nodes do not add any more information to our prediction.
 
-The Naive-Bayes classifier in Question 4 performed worse than the networks in Questions 2 and 3. That may be due to that since the other nodes are not connected: some information between them is lost. The assumption that the variables are independent given the class label may not hold (it is a naive assumption). This is the only case when the Markov blanket of $S$ is different. 
+The Naive-Bayes classifier in Question 4 performed worse than the networks in Questions 2 and 3. That may be due to the fact that the other nodes are not connected: some information between them is lost. The assumption that the variables are independent given the class label may not hold (it is a naive assumption). This is the only case when the Markov blanket of $S$ is different. 
 
 \clearpage
 

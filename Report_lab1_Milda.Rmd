@@ -322,7 +322,7 @@ title(train_learn, main="True BN")
 
 We notice that both plots have the same structure around S: the node S is connected only to the nodes L and B (both BN have the same Markov Blanket of S). This indicates that the Markov Blanket of S is the same in the learnt BN from question 2 and the true BN. The predictions in the question 3 specifically uses only the Markov Blanket of S. Therefore, they all produce the same predictions.
 
-The Naive Bayes Classifier produced slightly worse results. This is due to the loss of some information (for example, the Markov Blanket of S in Naive Bayes is different from the Markov Blanket in other questions). 
+The Naive Bayes Classifier produced slightly worse results. This might be due to the loss of some information as the relationshps between other nodes are ignored (the naive assumption of independence). A direct results of this is the fact that Markov Blanket of S in Naive Bayes is different from the Markov Blanket of the other BNs structures. 
 
 #Appendix
 
