@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ### 1. Show that multiple runs of the hill-climbing algorithm can return non-equivalent BN.
 
-```{r, message=FALSE}
+```{r, message=FALSE, warning=FALSE}
 library(bnlearn)
 library(gRain)
 
@@ -87,13 +87,23 @@ plot(startg, main="Generated Random Starting Graph")
 par(mfrow=c(1,1))
 plot(BN6, main="BN6 - with Random Starting Graph")
 
+listDAG <- list(BN1,BN2,BN3,BN4,BN5,BN6)
+
+for (j in 1:5){
+  bnj <- listDAG[[j]]
+for(i in (j+1):6){
+  bni <- listDAG[[i]]
+  
+ print(paste0(all.equal(cpdag(bni), cpdag(bnj))," (BN",i," and BN",j,")"))
+}
+}
 ```
 
-From the graphs above, it is clear that different runs of the hill-climbing algorithm produces non-equivalent Bayesian Network structures.
+From the graphs above, it is clear that different runs of the hill-climbing algorithm produces mostly non-equivalent Bayesian Network structures. To confirm this we use r function cpdag that returns a moral graph: it is used to compare the statistical models underlying the graphs. The direction of an arrow between the same nodes does not provide a statistical difference between the graphs, hence statistically BN2 and BN3 are indistinguishable.
 
 By forcing 3 arcs as the whitelist indicates, the algorithm delivers BN1 which is the same as the complete BN. However, without the whitelist the algorithm yields BN2 which has one arc less than BN1. The arc A -> T is missing here. For BN3 _restart=5_ is specified and direction of one arc is changed compared to BN2 as from (S -> L) to (L -> S). 
 
-Hill-climbing algorithm is a heuristic approach and unfortunately is not asymptotically correct. Moreover, statistically BN2 and BN3 are indistinguishable. 
+Hill-climbing algorithm is a heuristic approach and unfortunately is not asymptotically correct.  
 
 \clearpage
 
@@ -326,7 +336,7 @@ The Naive-Bayes classifier in Question 4 performed worse than the networks in Qu
 
 \clearpage
 
-### Appendix
+### 6. Appendix
 
 ```{r, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 
