@@ -18,6 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(bnlearn)
 library(gRain) 
 library(RBGL)
+set.seed(123456)
 #source("https://bioconductor.org/biocLite.R")
 #biocLite("RBGL")
 library(gRbase)
@@ -91,6 +92,20 @@ title(BN8, main = "BN8: with the starting graph")
 BN9 <- hc(asia, start = startg, score = "bde", restart = 5, iss=10)
 plot(BN9)
 title(BN9, main = "BN9: BN8 + score = bde, restart = 5, iss=10 ")
+```
+
+```{r,echo=FALSE}
+
+listDAG <- list(BN1,BN2,BN3,BN4,BN5,BN6,BN7,BN8,BN9)
+
+for (j in 1:8){
+  bnj <- listDAG[[j]]
+for(i in (j+1):9){
+  bni <- listDAG[[i]]
+  
+ print(paste0(all.equal(cpdag(bni), cpdag(bnj))," (BN",i," and BN",j,")"))
+}
+}
 ```
 
 Hill climbing algorithm finds local optimal solution instead of the global. Hence, having different starting parameters can produce non-equivalent final structures. The direction of the arrows statistically has no difference, so the graphs that have same nodes connected but in opposite directions are still equivalent.
